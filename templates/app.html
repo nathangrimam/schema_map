@@ -1,0 +1,1640 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>__TITLE__ — schema map</title>
+<style>
+:root{--bg:#09090b;--panel:#0e0e11;--panel2:#18181b;--line:#27272a;--line2:#3f3f46;
+      --txt:#fafafa;--mut:#a1a1aa;--acc:#6ee7b7;--acc-bg:rgba(110,231,183,.10);
+      --acc-line:rgba(110,231,183,.40);--ok:#6ee7b7;--warn:#fbbf24;--err:#f87171;
+      --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+      --w:284px;--side-space:var(--w);--inspector-space:0px;--inspector-w:390px}
+html.side-collapsed{--side-space:0px}
+html.inspector-open{--inspector-space:var(--inspector-w)}
+*{box-sizing:border-box}
+/* esconde a barra de rolagem nativa (design antigo) mantendo o scroll */
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{width:0;height:0;display:none}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);
+  font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+
+#side{position:fixed;inset:0 auto 0 0;width:var(--w);background:var(--panel);
+  border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:10;
+  transform:translateX(0);transition:transform .2s ease}
+html.side-collapsed #side{transform:translateX(-100%)}
+#side header{padding:12px 28px 12px 14px;border-bottom:1px solid var(--line)}
+#side h1{margin:0;font-size:13px;font-weight:600;word-break:break-all;font-family:var(--mono)}
+#side h1::before{content:"$ ";color:var(--acc)}
+#side .meta{color:var(--mut);font-size:11px;margin-top:4px;font-variant-numeric:tabular-nums;
+  font-family:var(--mono)}
+#scroll{flex:1;overflow-y:auto;overscroll-behavior:contain}
+section{border-bottom:1px solid var(--line);padding:12px 14px}
+section h2{margin:0 0 10px;font-size:10px;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--mut);font-family:var(--mono)}
+section h2::before{content:"# ";opacity:.5}
+.row{display:flex;gap:7px}.row>*{flex:1}
+label.ck{display:flex;gap:7px;align-items:center;color:var(--mut);cursor:pointer;
+  user-select:none;padding:3px 0;font-size:12px;font-family:var(--mono)}
+label.ck:hover{color:var(--txt)}
+input[type=checkbox]{accent-color:var(--acc)}
+input[type=search]{width:100%;background:var(--panel2);border:1px solid var(--line);
+  color:var(--txt);border-radius:4px;padding:7px 10px;outline:none;font-size:12px;
+  font-family:var(--mono)}
+input[type=search]:focus{border-color:var(--acc-line)}
+select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+  border-radius:4px;padding:6px 8px;font-size:12px;outline:none;font-family:var(--mono)}
+button{background:transparent;border:1px solid var(--line2);color:var(--mut);border-radius:4px;
+  padding:6px 9px;cursor:pointer;font-size:12px;white-space:nowrap;font-family:var(--mono);
+  transition:color .12s,border-color .12s,background .12s}
+button:hover{border-color:var(--acc-line);color:var(--txt);background:var(--acc-bg)}
+button.cmd::before{content:"[ "}button.cmd::after{content:" ]"}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,
+dialog:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+button.pri{background:var(--acc-bg);border-color:var(--acc-line);color:var(--acc);font-weight:500}
+button.pri:hover{background:rgba(110,231,183,.18)}
+button.pri[disabled]{opacity:.45;cursor:default;background:var(--panel2);color:var(--mut);border-color:var(--line)}
+#saved{font-size:11.5px;color:var(--mut);margin-top:8px;display:block;font-variant-numeric:tabular-nums}
+#saved.un{color:var(--warn)}#saved.err{color:var(--err)}
+
+ul.list{list-style:none;margin:0;padding:0;max-height:min(38vh,340px);overflow-y:auto}
+ul.list li{display:flex;gap:8px;align-items:center;padding:5px 7px;border-radius:5px;
+  cursor:pointer;font-size:12.5px}
+ul.list li:hover{background:var(--panel2)}
+ul.list li.on{background:var(--acc-bg)}
+.dot{width:9px;height:9px;border-radius:2px;flex:none}
+.nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ct{color:var(--mut);font-size:11px;font-variant-numeric:tabular-nums}
+
+#wrap{position:fixed;inset:0 var(--inspector-space) 0 var(--side-space);transition:left .2s ease,right .2s ease}
+#inspector{position:fixed;inset:0 0 0 auto;width:var(--inspector-w);z-index:14;background:var(--panel);
+  border-left:1px solid var(--line);overflow:hidden;box-shadow:-5px 0 18px rgba(0,0,0,.2)}
+#inspector[hidden]{display:none}#inspectorClose{position:absolute;right:10px;top:10px;z-index:2;width:30px;height:30px;
+  padding:0;font-size:19px;line-height:1;background:var(--panel2)}
+#inspectorContent{height:100%}
+.schema-inspector{height:100%;display:flex;flex-direction:column;min-width:0;padding:0;border:0}
+.schema-inspector__header{padding:14px 50px 11px 14px;border-bottom:1px solid var(--line);display:grid;gap:9px}
+.schema-inspector__heading{display:flex;align-items:baseline;gap:9px;min-width:0}.schema-inspector__title{margin:0;font-size:15px}
+.schema-inspector__status{margin:0;color:var(--mut);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.schema-inspector__status.is-error{color:var(--err)}.schema-inspector__status.is-success{color:var(--ok)}
+.schema-inspector__selection{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px}
+.schema-inspector__selection-label,.schema-inspector__label{color:var(--mut);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em}
+.schema-inspector__tabs{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line);padding:6px}
+.schema-inspector__tabs button{border:0;border-radius:4px;padding:7px 4px;background:transparent;color:var(--mut)}
+.schema-inspector__tabs button.is-active{background:var(--panel2);color:var(--txt)}
+.schema-inspector__panel,.schema-inspector__empty{padding:14px;overflow:auto;flex:1}.schema-inspector> :last-child{overflow:auto}
+.schema-inspector__panel-title{font-size:12px;margin:0}.schema-inspector__panel-toolbar{display:flex;align-items:center;
+  justify-content:space-between;gap:8px;margin-bottom:10px}
+.schema-inspector__form{display:grid;gap:10px}.schema-inspector__form--card{border:1px solid var(--line);
+  background:var(--bg);padding:11px;margin:7px 0}
+.schema-inspector__field{display:grid;gap:5px}.schema-inspector__field:has(input[type=checkbox]){grid-template-columns:1fr auto;
+  align-items:center;border-bottom:1px solid var(--line);padding:3px 0 7px}
+.schema-inspector__input,.schema-inspector__select{min-width:0}
+.schema-inspector__type-args{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:7px}
+.schema-inspector__type-arg{display:grid;gap:3px;min-width:0}
+.schema-inspector__type-arg>span{color:var(--mut);font-size:10px;text-transform:uppercase;letter-spacing:.05em}
+.schema-inspector [hidden]{display:none}.schema-inspector__form-actions,
+.schema-inspector__row-actions{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+.schema-inspector__button--primary{background:var(--acc);border-color:var(--acc);color:var(--bg);font-weight:650}
+.schema-inspector__button--danger{color:var(--err)}.schema-inspector__list{display:grid;gap:5px}
+.schema-inspector__list-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;
+  border-bottom:1px solid var(--line);padding:4px 0}.schema-inspector__item{text-align:left;display:grid;gap:2px;
+  border:0;background:transparent;min-width:0;white-space:normal}.schema-inspector__item:hover,.schema-inspector__item.is-selected{background:var(--panel2)}
+.schema-inspector__item-title,.schema-inspector__item-meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.schema-inspector__item-meta,.schema-inspector__hint,.schema-inspector__empty-text{font-size:11px;color:var(--mut);margin:0}
+.schema-inspector__subheading{margin:5px 0 0;font-size:11px}.schema-inspector__ordered-picker{display:grid;gap:4px}
+.schema-inspector__column-choice{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:7px;
+  min-height:32px;padding:3px 5px;border:1px solid var(--line)}.schema-inspector__choice-text{font-size:11.5px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.schema-inspector__choice-controls{display:flex;gap:2px}
+.schema-inspector__choice-controls button{width:25px;height:25px;padding:0}.schema-inspector__endpoint-picker{display:grid;gap:8px}
+.schema-inspector.is-processing{opacity:.72}.schema-inspector__empty{display:grid;place-content:center;text-align:center}
+#workspacebar{position:absolute;left:14px;top:12px;display:flex;gap:10px;align-items:center;
+  max-width:calc(100% - 28px);z-index:8}
+#workspacebar #cmdOpen{display:flex;gap:8px;align-items:center;background:var(--panel);
+  border:1px solid var(--line);border-radius:6px;padding:7px 11px;min-width:250px}
+#workspacebar #cmdOpen:hover{border-color:var(--acc-line);background:var(--panel)}
+.ps1{color:var(--acc);font-family:var(--mono);font-weight:600}
+.ps1-hint{color:var(--mut);font-family:var(--mono);flex:1;text-align:left}
+kbd{font-family:var(--mono);font-size:10px;color:var(--mut);border:1px solid var(--line2);
+  border-radius:3px;padding:1px 5px}
+#workspaceStatus{color:var(--mut);font-size:11px;font-family:var(--mono);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;max-width:260px}
+
+#cmdPalette{border:1px solid var(--line2);background:var(--panel);border-radius:8px;padding:0;
+  width:min(540px,92vw);color:var(--txt);box-shadow:0 20px 60px rgba(0,0,0,.6);margin-top:12vh}
+#cmdPalette::backdrop{background:rgba(0,0,0,.6)}
+.cmd-head{display:flex;gap:9px;align-items:center;padding:12px 14px;
+  border-bottom:1px solid var(--line)}
+.cmd-head input{flex:1;background:transparent;border:0;outline:none;color:var(--txt);
+  font-family:var(--mono);font-size:13px;padding:0}
+#cmdList{list-style:none;margin:0;padding:6px;max-height:46vh;overflow-y:auto}
+#cmdList li{padding:8px 10px;border-radius:4px;cursor:pointer;font-family:var(--mono);
+  font-size:12.5px;color:var(--mut);display:flex;gap:10px;align-items:center}
+#cmdList li .k{color:var(--acc);opacity:.75}
+#cmdList li[aria-selected=true]{background:var(--acc-bg);color:var(--txt)}
+#cmdList li:hover{color:var(--txt)}
+input[type=text],input[type=number],textarea{width:100%;background:var(--panel2);border:1px solid var(--line);
+  border-radius:6px;color:var(--txt);font:inherit;padding:7px 9px;outline:none}
+textarea{min-height:300px;resize:vertical;line-height:1.5;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  tab-size:2;white-space:pre;overflow:auto}
+dialog{width:min(680px,calc(100vw - 28px));max-height:calc(100vh - 28px);padding:0;border:1px solid var(--line);
+  border-radius:8px;background:var(--panel);color:var(--txt);box-shadow:0 20px 70px rgba(0,0,0,.48)}
+dialog::backdrop{background:rgba(4,7,10,.7)}
+.dlg-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 11px;
+  border-bottom:1px solid var(--line)}
+.dlg-head h2{margin:0;font-size:15px;font-weight:650}
+.dlg-body{padding:14px 16px;overflow:auto;max-height:calc(100vh - 150px)}
+.dlg-foot{display:flex;align-items:center;justify-content:flex-end;gap:7px;padding:11px 16px;border-top:1px solid var(--line)}
+.field{display:grid;gap:5px;margin-bottom:11px}.field:last-child{margin-bottom:0}
+.field>label{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.field small{color:var(--mut);font-size:11px}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ckgrid{display:flex;gap:14px;flex-wrap:wrap}.ckgrid label{display:flex;align-items:center;gap:6px;font-size:12px}
+.dlg-msg{min-height:17px;color:var(--mut);font-size:11.5px;margin-top:8px}.dlg-msg.err{color:var(--err)}.dlg-msg.ok{color:var(--ok)}
+#sqlText{min-height:360px}.sql-editor-shell{height:min(48vh,430px);min-height:300px;border:1px solid var(--line);
+  border-radius:6px;overflow:hidden;background:var(--panel2)}.sql-editor-shell:focus-within{border-color:var(--acc)}
+.sql-summary{display:flex;gap:12px;flex-wrap:wrap;color:var(--mut);font-size:11.5px;margin-top:8px}
+.change-preview{display:grid;gap:6px;margin-top:10px}.change-row{display:flex;gap:8px;align-items:flex-start;
+  padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-size:11.5px}
+.change-row b{min-width:70px;color:var(--txt)}.change-row span{color:var(--mut);overflow-wrap:anywhere}
+#fileInput{display:none}
+@media (max-width:720px){#workspacebar{left:10px;top:10px;right:10px;max-width:none;overflow:auto}
+  #workspacebar button{flex:none}#workspaceStatus{display:none}.twocol{grid-template-columns:1fr}
+  textarea{min-height:240px}#sqlText,.sql-editor-shell{min-height:300px}
+  html.inspector-open{--inspector-space:0px}#inspector{inset:auto 0 0;width:100%;height:min(64vh,620px);
+    border-left:0;border-top:1px solid var(--line);box-shadow:0 -5px 18px rgba(0,0,0,.25)}}
+#sideToggle{position:fixed;left:calc(var(--side-space) - 15px);top:13px;width:30px;height:32px;
+  padding:0;display:grid;place-items:center;background:var(--panel2);z-index:12;
+  box-shadow:0 2px 8px rgba(0,0,0,.24);transition:left .2s ease;font-size:22px;line-height:1}
+html.side-collapsed #sideToggle{left:10px}
+svg{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+svg.drag{cursor:grabbing}
+#hud{position:fixed;right:14px;bottom:12px;display:flex;gap:8px;align-items:center;
+  background:rgba(22,26,33,.9);border:1px solid var(--line);border-radius:8px;
+  padding:5px 10px;font-size:11.5px;color:var(--mut);z-index:9;font-variant-numeric:tabular-nums;
+  max-width:calc(100vw - 28px)}
+#hud span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.blk rect.bg{fill-opacity:.13;stroke-opacity:.55;stroke-width:2}
+.blk text.ttl{font-size:30px;font-weight:700;fill-opacity:.9;cursor:move;user-select:none}
+.blk rect.grip{fill:transparent;cursor:nwse-resize}
+.blk.sel rect.bg{stroke-opacity:1;stroke-dasharray:10 6}
+.tb{cursor:move}
+.tb rect.bx{fill:var(--panel2);stroke:var(--line2)}
+.tb text{pointer-events:none}
+.tn{font-size:12.5px;font-weight:600;fill:#fff;font-family:var(--mono);letter-spacing:.02em}
+.cn{font-size:11px;fill:var(--txt);font-family:var(--mono)}
+.cty{font-size:10px;fill:var(--mut);font-family:var(--mono);letter-spacing:.01em}
+.gut{font-size:9px;font-family:var(--mono)}
+.pk{fill:var(--warn)}.fk{fill:#7fb2e5}
+.col rect.rowbg{fill:transparent}
+.col.zebra rect.rowbg{fill:rgba(255,255,255,.022)}
+.col.editing rect.rowbg{fill:var(--acc-bg);stroke:var(--acc-line)}
+.col.editing .cn{fill:var(--acc);font-weight:600}.col.editing .cty{fill:var(--txt)}
+.divider{stroke:rgba(255,255,255,.07);stroke-width:1}
+path.ed{fill:none;stroke:var(--line2);stroke-width:1.2;stroke-opacity:.45;pointer-events:none;
+  transition:stroke .12s,stroke-width .12s,stroke-opacity .12s}
+path.edflow{fill:none;stroke:var(--txt);stroke-width:1.5;stroke-dasharray:10 12;
+  stroke-dashoffset:0;stroke-opacity:0;pointer-events:none}
+path.edhit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer}
+.edlabel{font-size:11px;font-weight:600;fill:var(--mut);text-anchor:middle;cursor:pointer;
+  paint-order:stroke;stroke:var(--bg);stroke-width:5px;stroke-linejoin:round;user-select:none}
+.edgecard{display:none;font-size:9.5px;font-weight:700;fill:var(--txt);text-anchor:middle;
+  paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round;pointer-events:none}
+.rel:hover path.ed{stroke:var(--acc);stroke-opacity:.8;stroke-width:2}
+.rel.hot path.ed,.rel.selected path.ed{stroke:var(--acc);stroke-opacity:1;stroke-width:3}
+.rel.selected path.edflow{stroke-opacity:1;animation:edge-flow .75s linear infinite}
+.rel.selected .edgecard{display:block}
+.rel.selected .edlabel{fill:#fff;font-weight:700}
+#edges.labels-hidden .edlabel{display:none}
+#edges.labels-hidden .rel.selected .edlabel{display:block}
+@keyframes edge-flow{to{stroke-dashoffset:-22}}
+.dim{opacity:.07}
+.tb.hot rect.bx{stroke:var(--acc);stroke-width:2}
+.hid{display:none!important}
+#toast{position:fixed;left:calc(50% + 142px);bottom:24px;transform:translateX(-50%);
+  background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 16px;
+  opacity:0;transition:opacity .18s,left .2s ease;pointer-events:none;z-index:30}
+html.side-collapsed #toast{left:50%}
+#toast.on{opacity:1}
+
+@media (max-width:720px){
+  :root{--side-space:0px}
+  #side{box-shadow:8px 0 24px rgba(0,0,0,.28)}
+  html:not(.side-collapsed) #sideToggle{left:calc(var(--w) - 15px)}
+  #toast{left:50%}
+}
+@media (prefers-reduced-motion:reduce){
+  #side,#wrap,#sideToggle,#toast{transition:none}
+  .rel.selected path.edflow{animation:none;stroke-dasharray:none;stroke-opacity:.75}
+}
+
+/* edição direta no canvas: input flutuante ancorado sobre a caixa da tabela */
+#inlineEdit{position:absolute;z-index:9;display:none;font-family:var(--mono);
+  background:var(--panel2);color:var(--txt);border:1px solid var(--acc);border-radius:3px;
+  padding:0 5px;outline:none;box-shadow:0 0 0 3px var(--acc-bg)}
+#inlineEdit.on{display:block}
+</style>
+
+<script>
+try {
+  const sideState = localStorage.getItem('schemamap.sidebar');
+  if (sideState === 'closed' || (sideState === null && matchMedia('(max-width:720px)').matches))
+    document.documentElement.classList.add('side-collapsed');
+} catch (_) {}
+</script>
+
+<div id="side">
+  <header>
+    <h1>__TITLE__</h1>
+    <div class="meta" id="meta"></div>
+  </header>
+  <div id="scroll">
+    <section>
+      <h2>ações</h2>
+      <div class="row">
+        <button id="fit" class="cmd" title="tecla F">ajustar</button>
+        <button id="save" class="cmd pri" disabled>salvar</button>
+      </div>
+      <!-- menos usados vivem na paleta (⌘K), não ocupam espaço fixo -->
+      <div hidden>
+        <button id="addblk">novo bloco</button>
+        <button id="auto">auto-organizar</button>
+      </div>
+      <label class="ck" style="margin-top:8px">
+        <input type="checkbox" id="autosave" checked> auto-salvar</label>
+      <span id="saved"></span>
+    </section>
+
+    <section>
+      <h2>buscar</h2>
+      <input type="search" id="q" placeholder="tabela ou coluna…">
+    </section>
+
+    <section>
+      <h2>exibição</h2>
+      <label class="ck"><input type="checkbox" id="cols" checked> mostrar colunas</label>
+      <label class="ck"><input type="checkbox" id="hubs"> ocultar FKs de hub</label>
+      <div style="margin-top:8px">
+        <select id="edgestyle">
+          <option value="curve">linhas curvas</option>
+          <option value="ortho">linhas retas ⌐</option>
+        </select>
+      </div>
+    </section>
+
+    <section>
+      <h2>blocos <span class="ct" id="nblk"></span></h2>
+      <ul class="list" id="blklist"></ul>
+    </section>
+
+    <section>
+      <h2>tabelas <span class="ct" id="ntbl"></span></h2>
+      <ul class="list" id="tbllist"></ul>
+    </section>
+  </div>
+</div>
+
+<aside id="inspector" aria-label="Inspetor do schema" hidden>
+  <button id="inspectorClose" type="button" title="Fechar inspetor" aria-label="Fechar inspetor">×</button>
+  <div id="inspectorContent"></div>
+</aside>
+
+<button id="sideToggle" type="button" aria-controls="side" aria-expanded="true"
+  title="Recolher menu"><span aria-hidden="true">‹</span></button>
+
+<div id="wrap">
+  <div id="workspacebar" aria-label="workspace SQL">
+    <button id="cmdOpen" type="button" title="Paleta de comandos (⌘K)">
+      <span class="ps1">$</span><span class="ps1-hint">comando</span><kbd>⌘K</kbd>
+    </button>
+    <span id="workspaceStatus" aria-live="polite"></span>
+  </div>
+  <!-- Os comandos seguem existindo como botões para preservar os listeners;
+       a paleta apenas dispara o clique de cada um. -->
+  <div id="cmdSource" hidden>
+    <button id="newProject" type="button">novo projeto</button>
+    <button id="openSql" type="button">abrir arquivo .sql</button>
+    <button id="editSql" type="button">editor SQL</button>
+    <button id="addTable" type="button">nova tabela</button>
+    <button id="addColumn" type="button">nova coluna</button>
+    <button id="addFk" type="button">nova chave estrangeira</button>
+    <button id="exportSql" type="button">exportar SQL</button>
+    <button id="exportProject" type="button">exportar projeto (.json)</button>
+    <button id="exportPg" type="button">exportar DDL PostgreSQL</button>
+    <button id="exportMy" type="button">exportar DDL MySQL</button>
+  </div>
+
+  <dialog id="cmdPalette" aria-label="Paleta de comandos">
+    <div class="cmd-head"><span class="ps1">$</span><input id="cmdInput" type="search"
+      placeholder="digite um comando…" autocomplete="off" spellcheck="false"></div>
+    <ul id="cmdList"></ul>
+  </dialog>
+  <input id="inlineEdit" spellcheck="false" autocomplete="off">
+  <datalist id="typeOptions"></datalist>
+  <input id="fileInput" type="file" accept=".sql,.json,.schema-map.json,text/sql,application/sql,application/json,text/plain">
+  <svg id="svg"><g id="cam"></g></svg>
+</div>
+<div id="hud"><span id="zoom"></span><span id="sel"></span></div>
+<div id="toast"></div>
+
+<dialog id="sqlDialog" aria-labelledby="sqlDialogTitle">
+  <form method="dialog" id="sqlForm">
+    <div class="dlg-head"><h2 id="sqlDialogTitle">Projeto SQL</h2><button value="cancel" type="submit" title="Fechar">fechar</button></div>
+    <div class="dlg-body">
+      <div class="twocol">
+        <div class="field"><label for="sqlTitle">título / arquivo</label><input id="sqlTitle" type="text" value="novo_schema.sql" autocomplete="off"></div>
+        <div class="field"><label for="sqlDialect">dialeto</label><select id="sqlDialect"><option value="auto">detectar automaticamente</option><option value="postgres">PostgreSQL</option><option value="mysql">MySQL / MariaDB</option></select></div>
+      </div>
+      <div class="field"><label for="sqlText">DDL</label><div id="sqlEditor" class="sql-editor-shell" aria-label="Editor DDL SQL" hidden></div><textarea id="sqlText" spellcheck="false" placeholder="CREATE TABLE ..."></textarea></div>
+      <div id="sqlMsg" class="dlg-msg" aria-live="polite"></div>
+      <div id="sqlSummary" class="sql-summary"></div>
+      <div id="sqlChanges" class="change-preview" aria-live="polite"></div>
+    </div>
+    <div class="dlg-foot">
+      <button id="validateSql" value="validate" type="button">validar</button>
+      <button id="applySql" class="pri" value="apply" type="button">aplicar e recarregar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="tableDialog" aria-labelledby="tableDialogTitle">
+  <form method="dialog" id="tableForm">
+    <div class="dlg-head"><h2 id="tableDialogTitle">Criar tabela</h2><button value="cancel" type="submit">fechar</button></div>
+    <div class="dlg-body">
+      <div class="field"><label for="tableName">nome da tabela</label><input id="tableName" type="text" placeholder="customers" autocomplete="off"></div>
+      <div class="twocol">
+        <div class="field"><label for="tableIdName">coluna inicial</label><input id="tableIdName" type="text" value="id" autocomplete="off"></div>
+        <div class="field"><label for="tableIdType">tipo</label><input id="tableIdType" type="text" value="INTEGER" list="typeOptions" autocomplete="off"></div>
+      </div>
+      <div class="ckgrid"><label><input id="tableIdPk" type="checkbox" checked> chave primária</label><label><input id="tableIdRequired" type="checkbox" checked> NOT NULL</label></div>
+      <div id="tableMsg" class="dlg-msg" aria-live="polite"></div>
+    </div>
+    <div class="dlg-foot"><button value="cancel" type="submit">cancelar</button><button id="applyTable" class="pri" value="apply" type="button">criar e aplicar</button></div>
+  </form>
+</dialog>
+
+<dialog id="columnDialog" aria-labelledby="columnDialogTitle">
+  <form method="dialog" id="columnForm">
+    <div class="dlg-head"><h2 id="columnDialogTitle">Adicionar coluna</h2><button value="cancel" type="submit">fechar</button></div>
+    <div class="dlg-body">
+      <div class="twocol"><div class="field"><label for="columnTable">tabela</label><select id="columnTable"></select></div><div class="field"><label for="columnName">nome</label><input id="columnName" type="text" placeholder="status" autocomplete="off"></div></div>
+      <div class="twocol"><div class="field"><label for="columnType">tipo</label><input id="columnType" type="text" value="TEXT" list="typeOptions" autocomplete="off"></div><div class="field"><label for="columnDefault">default opcional</label><input id="columnDefault" type="text" placeholder="'active'" autocomplete="off"></div></div>
+      <div class="ckgrid"><label><input id="columnPk" type="checkbox"> chave primária</label><label><input id="columnRequired" type="checkbox"> NOT NULL</label><label><input id="columnUnique" type="checkbox"> UNIQUE</label></div>
+      <div id="columnMsg" class="dlg-msg" aria-live="polite"></div>
+    </div>
+    <div class="dlg-foot"><button value="cancel" type="submit">cancelar</button><button id="applyColumn" class="pri" value="apply" type="button">adicionar e aplicar</button></div>
+  </form>
+</dialog>
+
+<dialog id="fkDialog" aria-labelledby="fkDialogTitle">
+  <form method="dialog" id="fkForm">
+    <div class="dlg-head"><h2 id="fkDialogTitle">Criar relacionamento</h2><button value="cancel" type="submit">fechar</button></div>
+    <div class="dlg-body">
+      <div class="twocol"><div class="field"><label for="fkName">nome da FK</label><input id="fkName" type="text" placeholder="fk_orders_customer" autocomplete="off"></div><div class="field"><label for="fkChildTable">tabela filha (N)</label><select id="fkChildTable"></select></div></div>
+      <div class="twocol"><div class="field"><label for="fkChildCol">coluna filha</label><select id="fkChildCol"></select></div><div class="field"><label for="fkParentTable">tabela pai (1)</label><select id="fkParentTable"></select></div></div>
+      <div class="twocol"><div class="field"><label for="fkParentCol">coluna referenciada</label><select id="fkParentCol"></select></div><div class="field"><label for="fkDelete">ON DELETE</label><select id="fkDelete"><option>NO ACTION</option><option>RESTRICT</option><option>CASCADE</option><option>SET NULL</option><option>SET DEFAULT</option></select></div></div>
+      <div class="twocol"><div class="field"><label for="fkUpdate">ON UPDATE</label><select id="fkUpdate"><option>NO ACTION</option><option>RESTRICT</option><option>CASCADE</option><option>SET NULL</option><option>SET DEFAULT</option></select></div><div class="field"><label>cardinalidade atual</label><input id="fkCardinality" type="text" value="n:1" readonly></div></div>
+      <div id="fkMsg" class="dlg-msg" aria-live="polite"></div>
+    </div>
+    <div class="dlg-foot"><button value="cancel" type="submit">cancelar</button><button id="applyFk" class="pri" value="apply" type="button">criar e aplicar</button></div>
+  </form>
+</dialog>
+
+<script src="/assets/sql-editor.js"></script>
+<script>
+let DATA = __DATA__;
+const HDR = DATA.meta.hdr, ROW = DATA.meta.row, GRID = 10;
+const NS = 'http://www.w3.org/2000/svg';
+const el = (n, a) => { const e = document.createElementNS(NS, n);
+  for (const k in a) e.setAttribute(k, a[k]); return e; };
+const $ = id => document.getElementById(id);
+const snap = v => Math.round(v / GRID) * GRID;
+
+const svg = $('svg'), cam = $('cam');
+const gBlocks = el('g'), gEdges = el('g', {id:'edges'}), gTables = el('g');
+cam.append(gBlocks, gEdges, gTables);
+
+function sideIsCollapsed() {
+  return document.documentElement.classList.contains('side-collapsed');
+}
+function syncSideToggle() {
+  const collapsed = sideIsCollapsed(), button = $('sideToggle');
+  $('side').inert = collapsed;
+  $('side').setAttribute('aria-hidden', String(collapsed));
+  button.querySelector('span').textContent = collapsed ? '›' : '‹';
+  button.setAttribute('aria-expanded', String(!collapsed));
+  button.setAttribute('aria-label', collapsed ? 'Expandir menu' : 'Recolher menu');
+  button.title = collapsed ? 'Expandir menu' : 'Recolher menu';
+}
+
+const T = {};
+function indexTables() {
+  for (const name in T) delete T[name];
+  DATA.tables.forEach(t => T[t.name] = t);
+}
+indexTables();
+let BLOCKS = DATA.blocks.map(b => ({...b}));
+let dirty = false, sel = null, selEdge = null, selBlock = null, drag = null;
+const undoStack = [];
+
+// A página recebe o diagrama no HTML, mas o DDL fonte vive na sessão do servidor.
+let SOURCE = null, DRAFT = null, sourceLoading = null, SQL_EDITOR = null, VALIDATED_SQL = null;
+let INSPECTOR = null;
+function fallbackSource() { return {sql:'', title:DATA.meta.title || 'novo_schema.sql',
+  dialect:DATA.meta.dialect || 'auto', source:null}; }
+function setWorkspaceStatus(msg) { $('workspaceStatus').textContent = msg || ''; }
+function setDialogMsg(id, msg, kind = '') {
+  const node = $(id); node.textContent = msg || ''; node.className = 'dlg-msg' + (kind ? ' ' + kind : '');
+}
+function sqlValue() { return SQL_EDITOR ? SQL_EDITOR.getValue() : $('sqlText').value; }
+function invalidateSqlPreview() {
+  VALIDATED_SQL = null;
+  $('applySql').textContent = 'revisar alterações';
+  $('sqlChanges').textContent = '';
+}
+function ensureSqlEditor(value, dialect) {
+  $('sqlText').value = value || '';
+  if (!SQL_EDITOR && window.SchemaMapSqlEditor && SchemaMapSqlEditor.mountSqlEditor) {
+    $('sqlEditor').hidden = false;
+    $('sqlText').hidden = true;
+    SQL_EDITOR = SchemaMapSqlEditor.mountSqlEditor({
+      parent: $('sqlEditor'), value: value || '', dialect,
+      onChange(next) { $('sqlText').value = next; invalidateSqlPreview(); },
+    });
+  } else if (SQL_EDITOR) {
+    SQL_EDITOR.setValue(value || '');
+    SQL_EDITOR.setDialect(dialect);
+  } else {
+    $('sqlEditor').hidden = true;
+    $('sqlText').hidden = false;
+  }
+}
+function changeEntries(changes) {
+  if (!changes || typeof changes !== 'object') return [];
+  const labels = {added:'adicionados', removed:'removidos', changed:'alterados'};
+  const groups = {tables:'tabelas', columns:'colunas', relationships:'relações'};
+  const rows = [];
+  for (const [group, value] of Object.entries(changes)) {
+    if (!value || typeof value !== 'object') continue;
+    for (const [kind, items] of Object.entries(value)) {
+      if (!Array.isArray(items) || !items.length) continue;
+      const names = items.map(item => typeof item === 'string' ? item :
+        (item.name || item.table || item.id || JSON.stringify(item)));
+      rows.push({label:`${groups[group] || group} ${labels[kind] || kind}`, text:names.join(', ')});
+    }
+  }
+  return rows;
+}
+function renderChanges(changes) {
+  const root = $('sqlChanges'); root.textContent = '';
+  const rows = changeEntries(changes);
+  if (!rows.length) {
+    const row = document.createElement('div'); row.className = 'change-row';
+    row.innerHTML = '<b>sem mudanças</b><span>o modelo estrutural permanece igual</span>';
+    root.append(row); return;
+  }
+  rows.forEach(item => {
+    const row = document.createElement('div'), label = document.createElement('b'), text = document.createElement('span');
+    row.className = 'change-row'; label.textContent = item.label; text.textContent = item.text;
+    row.append(label, text); root.append(row);
+  });
+}
+async function apiJson(path, options = {}) {
+  let response;
+  try { response = await fetch(path, options); }
+  catch (e) { throw new Error('API indisponível; abra o projeto pelo servidor'); }
+  let data = {};
+  try { data = await response.json(); }
+  catch (_) { data = {error: 'resposta inválida do servidor'}; }
+  if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
+  return data;
+}
+function hideInspector() {
+  document.documentElement.classList.remove('inspector-open');
+  $('inspector').hidden = true;
+  markEditingColumn(null);
+}
+// Marca no diagrama a linha que o inspetor esta editando. Chamado tanto pelo
+// clique na tabela quanto pelo proprio inspetor, para a selecao feita no painel
+// (lista de colunas, troca de tabela) aparecer no desenho.
+function markEditingColumn(selection) {
+  const current = gTables.querySelector('.col.editing');
+  if (current) current.classList.remove('editing');
+  if (!selection || !selection.columnId) return;
+  const table = DATA.tables.find(item => item.id === selection.tableId);
+  const node = table && tableNode[table.name];
+  if (!node) return;
+  const row = node.querySelector('.col[data-col-id="' + CSS.escape(selection.columnId) + '"]');
+  if (row) row.classList.add('editing');
+}
+function showInspector(kind, id) {
+  if (!INSPECTOR || !id) return;
+  $('inspector').hidden = false;
+  document.documentElement.classList.add('inspector-open');
+  const select = () => kind === 'relationship'
+    ? INSPECTOR.selectRelationship(id) : INSPECTOR.selectTable(id);
+  if (!select()) INSPECTOR.refresh().then(select);
+}
+function showColumnInspector(tableId, columnId) {
+  if (!INSPECTOR || !tableId || !columnId) return;
+  $('inspector').hidden = false;
+  document.documentElement.classList.add('inspector-open');
+  const select = () => INSPECTOR.selectColumn(tableId, columnId);
+  if (!select()) INSPECTOR.refresh().then(select);
+  markEditingColumn({tableId, columnId});
+}
+// Redesenha o diagrama com os dados novos, sem recarregar a página: a câmera,
+// o zoom e a seleção continuam onde estavam. Se a resposta não trouxer o
+// diagrama (servidor antigo), cai para o reload.
+function applyDiagram(next) {
+  if (!next || !Array.isArray(next.tables)) { location.reload(); return false; }
+  const previous = {table: sel, edge: selEdge && selEdge.dataset.relationId,
+                    block: selBlock && selBlock.id};
+  DATA = next;
+  indexTables();
+  BLOCKS = DATA.blocks.map(b => ({...b}));
+  selBlock = BLOCKS.find(b => b.id === previous.block) || null;
+  sel = null; selEdge = null;
+  undoStack.length = 0;
+  buildTables();
+  buildEdges();
+  drawBlocks(); drawSel(); paintHeaders(); reroute(); renderLists(); lod();
+  $('meta').textContent = `${DATA.meta.nt} tabelas · ${DATA.meta.nf} FKs · ` +
+    `${DATA.meta.dialect} · blocos: ${DATA.meta.grouping}`;
+  if (previous.table && T[previous.table]) focusTable(previous.table);
+  else if (previous.edge) {
+    const path = paths.find(p => p.dataset.relationId === previous.edge);
+    if (path) focusEdge(path);
+  }
+  return true;
+}
+async function mutateProject(operation) {
+  if (dirty && !(await doSave(true))) throw new Error('não foi possível salvar o layout atual');
+  const result = await apiJson('api/mutate', jsonBody(operation));
+  invalidateSource();
+  applyDiagram(result.diagram);
+  if (INSPECTOR) INSPECTOR.refresh();
+  toast(result.message || 'schema atualizado');
+  return result;
+}
+// O SQL de origem vive na sessão do servidor e muda a cada mutação. Sem o
+// reload da página o cache precisa ser descartado na mão.
+function invalidateSource() { SOURCE = null; sourceLoading = null; VALIDATED_SQL = null; }
+async function loadSource() {
+  if (SOURCE) return SOURCE;
+  if (sourceLoading) return sourceLoading;
+  sourceLoading = apiJson('api/sql').then(data => {
+    SOURCE = {sql:data.sql || '', title:data.title || 'novo_schema.sql',
+      dialect:data.dialect || 'auto', source:data.source || null};
+    setWorkspaceStatus(SOURCE.source ? 'fonte carregada' : 'novo projeto');
+    return SOURCE;
+  }).finally(() => { sourceLoading = null; });
+  return sourceLoading;
+}
+async function loadWorkingSource() {
+  if (DRAFT) return DRAFT;
+  try { return await loadSource(); }
+  catch (e) { SOURCE = SOURCE || fallbackSource(); throw e; }
+}
+function jsonBody(payload) { return {method:'POST', headers:{'content-type':'application/json'},
+  body:JSON.stringify(payload)}; }
+function dialogOpen(dialog) {
+  if (dialog.showModal) dialog.showModal(); else dialog.setAttribute('open', '');
+}
+function dialogClose(dialog) { if (dialog.close) dialog.close(); else dialog.removeAttribute('open'); }
+function unquoteIdent(value) { return String(value || '').trim().replace(/^([`"\[])(.*)([`"\]])$/, '$2'); }
+function normalizeIdent(value) { return unquoteIdent(value).toLowerCase(); }
+function quoteIdent(value, dialect) {
+  const q = dialect === 'mysql' ? '`' : '"';
+  return q + String(value).trim().replaceAll(q, q + q) + q;
+}
+function findCreateTable(sql, tableName) {
+  const re = /CREATE\s+(?:(?:TEMPORARY|TEMP)\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:(?:"[^"]+"|`[^`]+`|\[[^\]]+\]|[A-Za-z_][\w$]*)\s*\.\s*)?(?:"[^"]+"|`[^`]+`|\[[^\]]+\]|[A-Za-z_][\w$]*)\s*\(/gi;
+  let m;
+  while ((m = re.exec(sql))) {
+    const header = m[0].replace(/\s*\($/, '').trim();
+    const name = header.split(/\s*\.\s*/).pop();
+    if (normalizeIdent(name) !== normalizeIdent(tableName)) continue;
+    return {open: re.lastIndex - 1};
+  }
+  return null;
+}
+function matchingParen(sql, open) {
+  let depth = 0, quote = null;
+  for (let i = open; i < sql.length; i++) {
+    const ch = sql[i];
+    if (quote) {
+      if (ch === quote && sql[i + 1] === quote) { i++; continue; }
+      if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === '`' || ch === "'") { quote = ch; continue; }
+    if (ch === '(') depth++;
+    if (ch === ')' && --depth === 0) return i;
+  }
+  return -1;
+}
+function appendCreateItem(sql, tableName, item) {
+  const found = findCreateTable(sql, tableName);
+  if (!found) throw new Error(`CREATE TABLE não encontrado: ${tableName}`);
+  const close = matchingParen(sql, found.open);
+  if (close < 0) throw new Error(`CREATE TABLE inválido: ${tableName}`);
+  const body = sql.slice(found.open + 1, close);
+  const prefix = body.trim() ? body.replace(/\s*$/, '') + ',\n  ' : '\n  ';
+  const suffix = body.trim() ? '\n' : '\n';
+  return sql.slice(0, found.open + 1) + prefix + item + suffix + sql.slice(close);
+}
+function sqlPayload(source, sql) { return {sql, title:source.title || 'novo_schema.sql',
+  dialect:source.dialect || 'auto', detach:!source.source, reset:!!source.reset}; }
+async function applyPayload(payload, msgId, buttonId) {
+  const button = buttonId && $(buttonId); if (button) button.disabled = true;
+  try {
+    if (dirty && !(await doSave(true))) throw new Error('não foi possível salvar o layout atual');
+    const result = await apiJson('api/sql', jsonBody(payload));
+    SOURCE = {...payload, source:payload.detach ? null : (SOURCE && SOURCE.source)};
+    DRAFT = null; sourceLoading = null; VALIDATED_SQL = null;
+    setWorkspaceStatus(`${result.tables || 0} tabelas · ${result.relations || 0} relações`);
+    applyDiagram(result.diagram);
+    if (INSPECTOR) INSPECTOR.refresh();
+    // aplicar é decisão do usuário: grava, criando a pasta se for projeto novo
+    await doSave(true);
+    toast('SQL aplicado');
+    return result;
+  } catch (e) {
+    if (msgId) setDialogMsg(msgId, e.message, 'err'); else toast('erro: ' + e.message);
+    return null;
+  } finally { if (button) button.disabled = false; }
+}
+function openEditor(source) {
+  $('sqlTitle').value = source.title || 'novo_schema.sql';
+  $('sqlDialect').value = ['auto','postgres','mysql'].includes(source.dialect) ? source.dialect : 'auto';
+  ensureSqlEditor(source.sql || '', $('sqlDialect').value);
+  invalidateSqlPreview(); setDialogMsg('sqlMsg', ''); $('sqlSummary').textContent = '';
+  dialogOpen($('sqlDialog')); setTimeout(() => SQL_EDITOR ? SQL_EDITOR.focus() : $('sqlText').focus(), 40);
+}
+function tableItems(selectId, selected) {
+  const select = $(selectId), old = selected || select.value;
+  select.textContent = '';
+  DATA.tables.forEach(t => { const o = document.createElement('option'); o.value = t.name;
+    o.textContent = t.name; select.append(o); });
+  if (DATA.tables.some(t => t.name === old)) select.value = old;
+}
+function columnItems(selectId, tableName, selected) {
+  const select = $(selectId), old = selected || select.value, table = T[tableName];
+  select.textContent = '';
+  (table ? table.cols : []).forEach(c => { const o = document.createElement('option');
+    o.value = c.name; o.textContent = `${c.name} · ${c.type}`; select.append(o); });
+  if (table && table.cols.some(c => c.name === old)) select.value = old;
+}
+function inferredCardinality() {
+  const table = T[$('fkChildTable').value], col = $('fkChildCol').value;
+  const one = table && table.cols.some(c => c.name === col && c.unique);
+  $('fkCardinality').value = one ? '1:1' : 'n:1';
+}
+function requireIdent(value, label) {
+  if (!/^[A-Za-z_][A-Za-z0-9_$]*$/.test(value)) throw new Error(`${label} inválido`);
+  return value;
+}
+function buildColumnItem(dialect) {
+  const name = $('columnName').value.trim(), type = $('columnType').value.trim();
+  if (!name || !type) throw new Error('informe nome e tipo da coluna');
+  requireIdent(name, 'nome da coluna');
+  let item = `${quoteIdent(name, dialect)} ${type}`;
+  if ($('columnPk').checked) item += ' PRIMARY KEY';
+  else if ($('columnRequired').checked) item += ' NOT NULL';
+  if ($('columnUnique').checked) item += ' UNIQUE';
+  if ($('columnDefault').value.trim()) item += ' DEFAULT ' + $('columnDefault').value.trim();
+  return item;
+}
+function generatedTitle(source) { return source.title || 'novo_schema.sql'; }
+
+function workingDialect(source) { return source.dialect === 'mysql' ? 'mysql' : 'postgres'; }
+function openTableEditor() {
+  $('tableName').value = ''; $('tableIdName').value = 'id'; $('tableIdType').value = 'INTEGER';
+  $('tableIdPk').checked = true; $('tableIdRequired').checked = true;
+  setDialogMsg('tableMsg', ''); dialogOpen($('tableDialog')); $('tableName').focus();
+}
+function openColumnEditor() {
+  tableItems('columnTable');
+  $('columnName').value = ''; $('columnType').value = 'TEXT'; $('columnDefault').value = '';
+  $('columnPk').checked = false; $('columnRequired').checked = false; $('columnUnique').checked = false;
+  setDialogMsg('columnMsg', ''); dialogOpen($('columnDialog')); $('columnName').focus();
+}
+function openFkEditor() {
+  tableItems('fkChildTable'); tableItems('fkParentTable');
+  if (!DATA.tables.length) return toast('crie ou aplique uma tabela primeiro');
+  updateFkColumns();
+  $('fkName').value = ''; $('fkDelete').value = 'NO ACTION'; $('fkUpdate').value = 'NO ACTION';
+  setDialogMsg('fkMsg', ''); dialogOpen($('fkDialog')); $('fkName').focus();
+}
+function updateFkColumns() {
+  columnItems('fkChildCol', $('fkChildTable').value);
+  columnItems('fkParentCol', $('fkParentTable').value);
+  inferredCardinality();
+  const child = $('fkChildTable').value, col = $('fkChildCol').value, parent = $('fkParentTable').value;
+  if (!$('fkName').value && child && col && parent) $('fkName').value = `fk_${child}_${col}_${parent}`;
+}
+
+// ---------- workspace SQL
+$('newProject').addEventListener('click', () => {
+  DRAFT = {sql:'', title:'novo_schema.sql', dialect:'auto', source:null, reset:true};
+  openEditor(DRAFT);
+});
+$('openSql').addEventListener('click', () => $('fileInput').click());
+$('fileInput').addEventListener('change', async ev => {
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = '';
+  if (!file) return;
+  try {
+    const text = await file.text();
+    if (/\.json$/i.test(file.name)) {
+      const project = JSON.parse(text);
+      const result = await apiJson('api/project', jsonBody(project));
+      setWorkspaceStatus(`${result.tables || 0} tabelas · ${result.relations || 0} relações`);
+      invalidateSource(); DRAFT = null;
+      applyDiagram(result.diagram);
+      if (INSPECTOR) INSPECTOR.refresh();
+      await doSave(true);
+      toast('projeto carregado');
+      return;
+    }
+    DRAFT = {sql:text, title:file.name || 'novo_schema.sql', dialect:'auto', source:null, reset:true};
+    openEditor(DRAFT);
+  } catch (e) { toast('não foi possível abrir: ' + e.message); }
+});
+$('editSql').addEventListener('click', async () => {
+  let source = DRAFT || SOURCE || fallbackSource();
+  try { source = await loadWorkingSource(); }
+  catch (e) { toast(e.message); }
+  openEditor(source);
+});
+$('sqlText').addEventListener('input', invalidateSqlPreview);
+$('sqlTitle').addEventListener('input', invalidateSqlPreview);
+$('sqlDialect').addEventListener('change', () => {
+  if (SQL_EDITOR) SQL_EDITOR.setDialect($('sqlDialect').value);
+  invalidateSqlPreview();
+});
+function currentSqlPayload() {
+  const source = DRAFT || SOURCE || fallbackSource();
+  return sqlPayload({...source, title:$('sqlTitle').value.trim() || 'novo_schema.sql',
+                     dialect:$('sqlDialect').value}, sqlValue());
+}
+function sqlValidationKey(payload) {
+  return JSON.stringify([payload.sql, payload.title, payload.dialect, !!payload.reset]);
+}
+async function validateEditorPayload(payload) {
+  const result = await apiJson('api/sql/validate', jsonBody(payload));
+  $('sqlSummary').textContent = `${result.tables} tabelas · ${result.relations} relações · ${result.dialect}`;
+  renderChanges(result.changes);
+  VALIDATED_SQL = sqlValidationKey(payload);
+  $('applySql').textContent = 'confirmar aplicação';
+  return result;
+}
+$('validateSql').addEventListener('click', async () => {
+  const payload = currentSqlPayload();
+  const button = $('validateSql'); button.disabled = true; setDialogMsg('sqlMsg', 'validando…');
+  $('sqlSummary').textContent = '';
+  try {
+    await validateEditorPayload(payload);
+    setDialogMsg('sqlMsg', 'prévia pronta; confirme para aplicar', 'ok');
+  } catch (e) { setDialogMsg('sqlMsg', e.message, 'err'); }
+  finally { button.disabled = false; }
+});
+$('applySql').addEventListener('click', async () => {
+  const payload = currentSqlPayload();
+  if (VALIDATED_SQL !== sqlValidationKey(payload)) {
+    const button = $('applySql'); button.disabled = true; setDialogMsg('sqlMsg', 'validando…');
+    try {
+      await validateEditorPayload(payload);
+      setDialogMsg('sqlMsg', 'revise a prévia e clique em confirmar aplicação', 'ok');
+    } catch (e) { setDialogMsg('sqlMsg', e.message, 'err'); }
+    finally { button.disabled = false; }
+    return;
+  }
+  setDialogMsg('sqlMsg', 'aplicando…');
+  await applyPayload(payload, 'sqlMsg', 'applySql');
+});
+$('exportSql').addEventListener('click', async () => {
+  let source = DRAFT || SOURCE;
+  try { source = await loadWorkingSource(); }
+  catch (e) { toast('não foi possível carregar o SQL: ' + e.message); return; }
+  const name = generatedTitle(source).replace(/\.sql$/i, '') + '.sql';
+  const url = URL.createObjectURL(new Blob([source.sql || ''], {type:'application/sql;charset=utf-8'}));
+  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+  toast('SQL exportado');
+});
+$('exportProject').addEventListener('click', async () => {
+  try {
+    if (dirty && !(await doSave(true))) throw new Error('não foi possível salvar o layout atual');
+    const project = await apiJson('api/project');
+    const base = String(project.title || 'schema').replace(/\.sql$/i, '').replace(/[^A-Za-z0-9._-]+/g, '_');
+    const url = URL.createObjectURL(new Blob([JSON.stringify(project, null, 2) + '\n'],
+      {type:'application/json;charset=utf-8'}));
+    const a = document.createElement('a'); a.href = url; a.download = base + '.schema-map.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 500); toast('projeto exportado');
+  } catch (e) { toast('não foi possível exportar: ' + e.message); }
+});
+
+// ---------- geradores DDL
+$('addTable').addEventListener('click', async () => {
+  try { await loadWorkingSource(); openTableEditor(); }
+  catch (e) { toast(e.message); }
+});
+$('applyTable').addEventListener('click', async () => {
+  const source = DRAFT || SOURCE || fallbackSource();
+  try {
+    const name = requireIdent($('tableName').value.trim(), 'nome da tabela');
+    const idName = requireIdent($('tableIdName').value.trim(), 'nome da coluna');
+    const type = $('tableIdType').value.trim(); if (!type) throw new Error('informe o tipo da coluna');
+    if (DATA.tables.some(t => t.name.toLowerCase() === name.toLowerCase()))
+      throw new Error(`a tabela ${name} já existe no diagrama`);
+    const dialect = workingDialect(source);
+    let first = `${quoteIdent(idName, dialect)} ${type}`;
+    if ($('tableIdPk').checked) first += ' PRIMARY KEY';
+    else if ($('tableIdRequired').checked) first += ' NOT NULL';
+    const ddl = `CREATE TABLE ${quoteIdent(name, dialect)} (\n  ${first}\n);`;
+    const sql = source.sql.trim() ? source.sql.trimEnd() + '\n\n' + ddl : ddl;
+    await applyPayload(sqlPayload({...source, title:generatedTitle(source)}, sql), 'tableMsg', 'applyTable');
+  } catch (e) { setDialogMsg('tableMsg', e.message, 'err'); }
+});
+$('addColumn').addEventListener('click', async () => {
+  try {
+    const source = await loadWorkingSource();
+    if (!DATA.tables.length) throw new Error('não há tabelas no diagrama');
+    openColumnEditor();
+    $('columnTable').value = sel && T[sel] ? sel : $('columnTable').value;
+  } catch (e) { toast(e.message); }
+});
+$('applyColumn').addEventListener('click', async () => {
+  const source = DRAFT || SOURCE || fallbackSource();
+  try {
+    const table = $('columnTable').value; if (!table) throw new Error('selecione uma tabela');
+    const name = $('columnName').value.trim(); requireIdent(name, 'nome da coluna');
+    if (T[table] && T[table].cols.some(c => c.name.toLowerCase() === name.toLowerCase()))
+      throw new Error(`a coluna ${name} já existe em ${table}`);
+    const item = buildColumnItem(workingDialect(source));
+    const sql = appendCreateItem(source.sql, table, item);
+    await applyPayload(sqlPayload({...source, title:generatedTitle(source)}, sql), 'columnMsg', 'applyColumn');
+  } catch (e) { setDialogMsg('columnMsg', e.message, 'err'); }
+});
+$('addFk').addEventListener('click', async () => {
+  try {
+    await loadWorkingSource();
+    if (!DATA.tables.length) throw new Error('é necessária pelo menos uma tabela');
+    openFkEditor();
+  } catch (e) { toast(e.message); }
+});
+$('fkChildTable').addEventListener('change', updateFkColumns);
+$('fkParentTable').addEventListener('change', updateFkColumns);
+$('fkChildCol').addEventListener('change', inferredCardinality);
+$('applyFk').addEventListener('click', async () => {
+  const source = DRAFT || SOURCE || fallbackSource();
+  try {
+    const child = requireIdent($('fkChildTable').value, 'tabela filha');
+    const childCol = requireIdent($('fkChildCol').value, 'coluna filha');
+    const parent = requireIdent($('fkParentTable').value, 'tabela pai');
+    const parentCol = requireIdent($('fkParentCol').value, 'coluna referenciada');
+    const name = requireIdent($('fkName').value.trim() || `fk_${child}_${childCol}_${parent}`, 'nome da FK');
+    if (DATA.edges.some(e => e.c === child && e.col === childCol && e.p === parent && e.pcol === parentCol))
+      throw new Error('essa relação já existe no diagrama');
+    const dialect = workingDialect(source), qi = value => quoteIdent(value, dialect);
+    const ddl = `ALTER TABLE ${qi(child)} ADD CONSTRAINT ${qi(name)}\n` +
+      `  FOREIGN KEY (${qi(childCol)}) REFERENCES ${qi(parent)} (${qi(parentCol)})\n` +
+      `  ON DELETE ${$('fkDelete').value} ON UPDATE ${$('fkUpdate').value};`;
+    const sql = source.sql.trim() ? source.sql.trimEnd() + '\n\n' + ddl : ddl;
+    await applyPayload(sqlPayload({...source, title:generatedTitle(source)}, sql), 'fkMsg', 'applyFk');
+  } catch (e) { setDialogMsg('fkMsg', e.message, 'err'); }
+});
+$('sqlDialog').addEventListener('close', () => {
+  if ($('sqlDialog').returnValue === 'cancel') DRAFT = null;
+});
+
+let autosaveTimer = null, saving = false;
+function markDirty(on = true) {
+  dirty = on; $('save').disabled = !on;
+  if (on) {
+    $('saved').textContent = 'alterações não salvas'; $('saved').className = 'un';
+    if ($('autosave').checked) {
+      clearTimeout(autosaveTimer);
+      autosaveTimer = setTimeout(() => { if (dirty && !drag) doSave(true); }, 1200);
+    }
+  }
+}
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 1800); }
+function pushUndo() {
+  undoStack.push({ t: Object.fromEntries(DATA.tables.map(t => [t.name, {x:t.x, y:t.y}])),
+                   b: BLOCKS.map(b => ({...b})) });
+  if (undoStack.length > 60) undoStack.shift();
+}
+function popUndo() {
+  const s = undoStack.pop(); if (!s) return;
+  DATA.tables.forEach(t => { const p = s.t[t.name]; if (p) { t.x = p.x; t.y = p.y; } });
+  BLOCKS = s.b.map(b => ({...b}));
+  drawBlocks(); DATA.tables.forEach(moveTable); reroute(); paintHeaders();
+  renderLists(); markDirty();
+}
+
+// ---------- blocos
+const blockNode = {};
+function drawBlocks() {
+  gBlocks.textContent = ''; for (const k in blockNode) delete blockNode[k];
+  BLOCKS.forEach(b => {
+    const g = el('g', {class:'blk'}); g.dataset.id = b.id;
+    g.append(el('rect', {class:'bg', x:b.x, y:b.y, width:b.w, height:b.h, rx:18,
+      fill:b.color, stroke:b.color}));
+    const t = el('text', {class:'ttl', x:b.x+24, y:b.y+46, fill:b.color});
+    t.textContent = b.name; g.append(t);
+    g.append(el('rect', {class:'grip', x:b.x+b.w-26, y:b.y+b.h-26, width:26, height:26}));
+    gBlocks.append(g); blockNode[b.id] = g;
+  });
+}
+function moveBlock(b) {
+  const g = blockNode[b.id]; if (!g) return;
+  const [bg, t, grip] = g.children;
+  bg.setAttribute('x', b.x); bg.setAttribute('y', b.y);
+  bg.setAttribute('width', b.w); bg.setAttribute('height', b.h);
+  t.setAttribute('x', b.x+24); t.setAttribute('y', b.y+46);
+  grip.setAttribute('x', b.x+b.w-26); grip.setAttribute('y', b.y+b.h-26);
+}
+function blockOf(t) {                       // pertence ao bloco que contém o centro
+  const cx = t.x + t.w/2, cy = t.y + t.h/2;
+  let best = null;
+  for (const b of BLOCKS)
+    if (cx >= b.x && cx <= b.x+b.w && cy >= b.y && cy <= b.y+b.h)
+      if (!best || b.w*b.h < best.w*best.h) best = b;
+  return best;
+}
+function tablesIn(b) { return DATA.tables.filter(t => blockOf(t) === b); }
+
+// ---------- tabelas
+const tableNode = {};
+const GUT = 16;                     // calha das marcas de chave
+const CHAR_W = 6.62, CHAR_TW = 6.02;   // largura do caractere mono em 11px e 10px
+// corta o texto no limite da coluna: a fonte é monoespaçada, então a conta fecha
+function clipText(text, width, charWidth) {
+  const max = Math.floor(width / charWidth);
+  return text.length <= max ? text
+       : (max <= 1 ? text.slice(0, 1) : text.slice(0, max - 1) + '…');
+}
+function titleOf(text) {
+  const el = document.createElementNS(NS, 'title'); el.textContent = text; return el;
+}
+function buildTables() {
+  gTables.replaceChildren();
+  for (const name in tableNode) delete tableNode[name];
+  DATA.tables.forEach(t => {
+  // desenhado em coordenadas locais; a posição vem de um transform no grupo,
+  // então mover a tabela é um atributo só e adicionar elementos não quebra nada
+  const g = el('g', {class:'tb'});
+  g.dataset.name = t.name; g.dataset.id = t.id || '';
+  g.setAttribute('transform', `translate(${t.x},${t.y})`);
+  g.append(el('rect', {class:'bx', x:0, y:0, width:t.w, height:t.h, rx:6}));
+  g.append(el('rect', {class:'hd', x:0, y:0, width:t.w, height:HDR, rx:6, fill:'#39424f'}));
+  g.append(el('rect', {class:'hdfix', x:0, y:HDR-6, width:t.w, height:6, fill:'#39424f'}));
+  const nm = el('text', {class:'tn', x:10, y:22}); nm.textContent = t.name;
+  g.append(nm);
+
+  const cg = el('g', {class:'colwrap'});
+  const split = Math.round(t.w * 0.60);
+  t.cols.forEach((c, i) => {
+    // cada coluna num grupo proprio: assim da para marcar a linha que o
+    // inspetor esta editando sem redesenhar a tabela inteira
+    const top = HDR + i*ROW, base = top + 13;
+    const row = el('g', {class:'col' + (i % 2 ? ' zebra' : '')});
+    row.dataset.colId = c.id || '';
+    row.append(el('rect', {class:'rowbg', x:1, y:top, width:t.w-2, height:ROW}));
+    if (c.k) {
+      const mark = el('text', {class:'gut ' + (c.k==='p'?'pk':'fk'), x:8, y:base});
+      mark.textContent = c.k === 'p' ? '◆' : '▸';
+      row.append(mark);
+    }
+    const a = el('text', {class:'cn', x:GUT+4, y:base});
+    a.textContent = clipText(c.name, split - GUT - 10, CHAR_W);
+    if (a.textContent !== c.name) a.append(titleOf(c.name));
+    const d = el('text', {class:'cty', x:t.w-10, y:base, 'text-anchor':'end'});
+    d.textContent = clipText(c.type, t.w - split - 14, CHAR_TW);
+    if (d.textContent !== c.type) d.append(titleOf(c.type));
+    row.append(a, d);
+    cg.append(row);
+  });
+  if (t.cols.length) {
+    cg.append(el('line', {class:'divider', x1:split, y1:HDR+2, x2:split, y2:t.h-2}));
+  }
+  g.append(cg); gTables.append(g); tableNode[t.name] = g;
+  });
+}
+buildTables();
+function moveTable(t) {
+  tableNode[t.name].setAttribute('transform', `translate(${t.x},${t.y})`);
+}
+function paintHeaders() {
+  DATA.tables.forEach(t => { const b = blockOf(t);
+    const g = tableNode[t.name];
+    const cor = b ? b.color : '#39424f';
+    g.querySelector('rect.hd').setAttribute('fill', cor);
+    g.querySelector('rect.hdfix').setAttribute('fill', cor); });
+}
+
+// ---------- arestas
+const paths = [];
+function buildEdges() {
+  gEdges.replaceChildren();
+  paths.length = 0;
+  DATA.edges.forEach((e, i) => {
+  const g = el('g', {class:'rel'}); g.dataset.id = String(i);
+  const p = el('path', {class:'ed'});
+  const flow = el('path', {class:'edflow'});
+  const hit = el('path', {class:'edhit'});
+  const label = el('text', {class:'edlabel'});
+  const childCard = el('text', {class:'edgecard'});
+  const parentCard = el('text', {class:'edgecard'});
+  const name = e.name || `${e.c}.${e.col}`;
+  const childRange = e.card === '1:1' ? '0..1' : '0..N';
+  const parentRange = e.required ? '1' : '0..1';
+  p.dataset.c = e.c; p.dataset.p = e.p; p.dataset.col = e.col;
+  p.dataset.pcol = e.pcol; p.dataset.name = name; p.dataset.card = e.card;
+  p.dataset.ccard = childRange; p.dataset.pcard = parentRange;
+  p.dataset.relationId = e.id || '';
+  p.dataset.hub = e.hub ? '1' : '';
+  label.textContent = `${name} · ${e.card}`;
+  childCard.textContent = childRange; parentCard.textContent = parentRange;
+  const title = el('title', {});
+  title.textContent = `${name}: ${e.c}.${e.col} (${childRange}) → ` +
+    `${e.p}.${e.pcol} (${parentRange})`;
+  p._flow = flow; p._hit = hit; p._label = label;
+  p._childCard = childCard; p._parentCard = parentCard; p._rel = g;
+  g.append(title, p, flow, hit, label, childCard, parentCard);
+  gEdges.append(g); paths.push(p);
+  g.addEventListener('pointerdown', ev => ev.stopPropagation());
+  g.addEventListener('click', ev => { ev.stopPropagation(); focusEdge(p); });
+  });
+}
+buildEdges();
+let EDGE = localStorage.getItem('schemamap.edge') || 'curve';
+const R = 12;
+function elbow(x1, y1, x2, y2, horiz) {
+  const m = horiz ? (x1 + x2) / 2 : (y1 + y2) / 2;
+  const sx = Math.sign(x2 - x1) || 1, sy = Math.sign(y2 - y1) || 1;
+  if (horiz) {
+    if (Math.abs(y2 - y1) < 2) return `M${x1},${y1} L${x2},${y2}`;
+    const r = Math.max(0, Math.min(R, Math.abs(m - x1), Math.abs(y2 - y1) / 2));
+    return `M${x1},${y1} L${m - r*sx},${y1} Q${m},${y1} ${m},${y1 + r*sy}` +
+           ` L${m},${y2 - r*sy} Q${m},${y2} ${m + r*sx},${y2} L${x2},${y2}`;
+  }
+  if (Math.abs(x2 - x1) < 2) return `M${x1},${y1} L${x2},${y2}`;
+  const r = Math.max(0, Math.min(R, Math.abs(m - y1), Math.abs(x2 - x1) / 2));
+  return `M${x1},${y1} L${x1},${m - r*sy} Q${x1},${m} ${x1 + r*sx},${m}` +
+         ` L${x2 - r*sx},${m} Q${x2},${m} ${x2},${m + r*sy} L${x2},${y2}`;
+}
+function route(p) {
+  const c = T[p.dataset.c], q = T[p.dataset.p];
+  const cc = {x:c.x+c.w/2, y:c.y+c.h/2}, pc = {x:q.x+q.w/2, y:q.y+q.h/2};
+  const horiz = Math.abs(pc.x-cc.x) >= Math.abs(pc.y-cc.y);
+  let d, x1, y1, x2, y2, labelX, labelY;
+  if (c === q) {
+    x1 = x2 = c.x+c.w; y1 = c.y+14; y2 = c.y+c.h-14;
+    const loop = Math.max(80, c.w*.45);
+    d = `M${x1},${y1} C${x1+loop},${y1-loop*.35} ` +
+        `${x2+loop},${y2+loop*.35} ${x2},${y2}`;
+    labelX = x1+loop*.78; labelY = (y1+y2)/2-7;
+  } else if (horiz) {
+    const r = pc.x > cc.x;
+    x1 = r ? c.x+c.w : c.x; x2 = r ? q.x : q.x+q.w;
+    y1 = Math.min(Math.max(pc.y, c.y+12), c.y+c.h-12);
+    y2 = Math.min(Math.max(cc.y, q.y+12), q.y+q.h-12);
+    if (EDGE === 'ortho') d = elbow(x1, y1, x2, y2, true);
+    else { const k = Math.max(40, Math.abs(x2-x1)*0.4);
+      d = `M${x1},${y1} C${x1+(r?k:-k)},${y1} ${x2+(r?-k:k)},${y2} ${x2},${y2}`; }
+  } else {
+    const dn = pc.y > cc.y;
+    y1 = dn ? c.y+c.h : c.y; y2 = dn ? q.y : q.y+q.h;
+    x1 = Math.min(Math.max(pc.x, c.x+12), c.x+c.w-12);
+    x2 = Math.min(Math.max(cc.x, q.x+12), q.x+q.w-12);
+    if (EDGE === 'ortho') d = elbow(x1, y1, x2, y2, false);
+    else { const k = Math.max(40, Math.abs(y2-y1)*0.4);
+      d = `M${x1},${y1} C${x1},${y1+(dn?k:-k)} ${x2},${y2+(dn?-k:k)} ${x2},${y2}`; }
+  }
+  p.setAttribute('d', d);
+  p._flow.setAttribute('d', d);
+  p._hit.setAttribute('d', d);
+  p._label.setAttribute('x', labelX ?? (x1+x2)/2);
+  p._label.setAttribute('y', labelY ?? (y1+y2)/2-7);
+  const len = Math.hypot(x2-x1, y2-y1) || 1;
+  const ux = (x2-x1)/len, uy = (y2-y1)/len;
+  const cardX = c === q ? 14 : 0;
+  p._childCard.setAttribute('x', x1+ux*28+cardX);
+  p._childCard.setAttribute('y', y1+uy*28-6);
+  p._parentCard.setAttribute('x', x2-ux*28+cardX);
+  p._parentCard.setAttribute('y', y2-uy*28-6);
+}
+function reroute(only) {
+  paths.forEach(p => { if (!only || p.dataset.c === only || p.dataset.p === only) route(p); });
+}
+
+// ---------- câmera
+let S = 1, TX = 0, TY = 0;
+function apply() {
+  cam.setAttribute('transform', `translate(${TX},${TY}) scale(${S})`);
+  $('zoom').textContent = Math.round(S*100) + '%';
+  lod();
+  if (typeof placeInline === 'function') placeInline();
+}
+function lod() {
+  const show = $('cols').checked && S >= 0.3;
+  gTables.querySelectorAll('.colwrap').forEach(g => g.classList.toggle('hid', !show));
+  gEdges.classList.toggle('labels-hidden', S < 0.22);
+}
+function viewport() { return {w: $('wrap').clientWidth, h: $('wrap').clientHeight}; }
+function zoomTo(r, pad = 140) {
+  const v = viewport();
+  if (!r || ![r.x,r.y,r.w,r.h].every(Number.isFinite)) r = {x:0,y:0,w:800,h:500};
+  S = Math.min(v.w/Math.max(1, r.w+pad), v.h/Math.max(1, r.h+pad));
+  S = Math.min(8, Math.max(0.02, S || 1));
+  TX = (v.w - r.w*S)/2 - r.x*S; TY = (v.h - r.h*S)/2 - r.y*S; apply();
+}
+function bbox() {
+  const xs = [], ys = [], xe = [], ye = [];
+  DATA.tables.forEach(t => { xs.push(t.x); ys.push(t.y); xe.push(t.x+t.w); ye.push(t.y+t.h); });
+  BLOCKS.forEach(b => { xs.push(b.x); ys.push(b.y); xe.push(b.x+b.w); ye.push(b.y+b.h); });
+  if (!xs.length) return {x:0, y:0, w:800, h:500};
+  const x = Math.min(...xs), y = Math.min(...ys);
+  return {x, y, w:Math.max(1, Math.max(...xe)-x), h:Math.max(1, Math.max(...ye)-y)};
+}
+const fit = () => zoomTo(bbox());
+const toWorld = ev => { const r = svg.getBoundingClientRect();
+  return {x:(ev.clientX-r.left-TX)/S, y:(ev.clientY-r.top-TY)/S}; };
+
+svg.addEventListener('wheel', ev => { ev.preventDefault();
+  const k = Math.exp(-ev.deltaY*0.0015), nx = Math.min(8, Math.max(0.02, S*k));
+  const r = svg.getBoundingClientRect(), mx = ev.clientX-r.left, my = ev.clientY-r.top;
+  TX = mx-(mx-TX)*(nx/S); TY = my-(my-TY)*(nx/S); S = nx; apply(); }, {passive:false});
+
+// ---------- arrastar
+let suppressCanvasClick = false;
+svg.addEventListener('pointerdown', ev => {
+  const tb = ev.target.closest('.tb'), bk = ev.target.closest('.blk');
+  if (ev.target.closest('.rel')) return;
+  const w = toWorld(ev);
+  const start = {startX:ev.clientX, startY:ev.clientY, down:w};
+  if (tb) {
+    const t = T[tb.dataset.name]; pushUndo();
+    drag = {kind:'table', t, dx:w.x-t.x, dy:w.y-t.y, ...start};
+    gTables.append(tb);
+  } else if (bk && ev.target.classList.contains('grip')) {
+    const b = BLOCKS.find(x => x.id === bk.dataset.id); pushUndo();
+    drag = {kind:'resize', b, dx:w.x-(b.x+b.w), dy:w.y-(b.y+b.h), ...start};
+  } else if (bk && ev.target.classList.contains('ttl')) {
+    const b = BLOCKS.find(x => x.id === bk.dataset.id); pushUndo();
+    drag = {kind:'block', b, dx:w.x-b.x, dy:w.y-b.y, ...start,
+            kids:tablesIn(b).map(t => ({t, ox:t.x-b.x, oy:t.y-b.y}))};
+    selBlock = b; drawSel(); renderLists();
+  } else {
+    drag = {kind:'pan', x:ev.clientX-TX, y:ev.clientY-TY, ...start}; svg.classList.add('drag');
+  }
+  svg.setPointerCapture(ev.pointerId);
+});
+svg.addEventListener('pointermove', ev => {
+  if (!drag) return;
+  if (!drag.moved && Math.hypot(ev.clientX-drag.startX, ev.clientY-drag.startY) < 4) return;
+  drag.moved = true;
+  if (drag.kind === 'pan') { TX = ev.clientX-drag.x; TY = ev.clientY-drag.y; apply(); return; }
+  const w = toWorld(ev);
+  if (drag.kind === 'table') {
+    drag.t.x = snap(w.x-drag.dx); drag.t.y = snap(w.y-drag.dy);
+    moveTable(drag.t); reroute(drag.t.name);
+  } else if (drag.kind === 'block') {
+    drag.b.x = snap(w.x-drag.dx); drag.b.y = snap(w.y-drag.dy);
+    moveBlock(drag.b);
+    drag.kids.forEach(k => { k.t.x = drag.b.x+k.ox; k.t.y = drag.b.y+k.oy; moveTable(k.t); });
+    reroute();
+  } else if (drag.kind === 'resize') {
+    drag.b.w = Math.max(260, snap(w.x-drag.dx-drag.b.x));
+    drag.b.h = Math.max(160, snap(w.y-drag.dy-drag.b.y));
+    moveBlock(drag.b);
+  }
+});
+svg.addEventListener('pointerup', () => {
+  const completed = drag;
+  if (completed && completed.moved) { paintHeaders(); renderLists(); markDirty(); }
+  else if (completed) {
+    undoStack.pop();
+    if (completed.kind === 'table') {
+      const table = completed.t;
+      const row = Math.floor((completed.down.y - table.y - HDR) / ROW);
+      focusTable(table.name);
+      if (row >= 0 && row < table.cols.length)
+        showColumnInspector(table.id, table.cols[row].id);
+      suppressCanvasClick = true;
+    }
+  }
+  if (completed) svg.classList.remove('drag');
+  drag = null;
+});
+function drawSel() {
+  gBlocks.querySelectorAll('.blk').forEach(g =>
+    g.classList.toggle('sel', selBlock && g.dataset.id === selBlock.id));
+}
+
+// ---------- realce
+function clear() { sel = null; selEdge = null; $('sel').textContent = ''; hideInspector();
+  gTables.querySelectorAll('.tb').forEach(g => g.classList.remove('dim','hot'));
+  paths.forEach(p => p._rel.classList.remove('dim','hot','selected')); renderLists(); }
+function focusTable(name) {
+  sel = name; selEdge = null; const keep = new Set([name]); let n = 0;
+  paths.forEach(p => { const on = p.dataset.c === name || p.dataset.p === name;
+    p._rel.classList.remove('selected');
+    p._rel.classList.toggle('hot', on); p._rel.classList.toggle('dim', !on);
+    if (on) { keep.add(p.dataset.c); keep.add(p.dataset.p); n++; } });
+  gTables.querySelectorAll('.tb').forEach(g => { const on = keep.has(g.dataset.name);
+    g.classList.toggle('hot', on); g.classList.toggle('dim', !on); });
+  $('sel').textContent = `· ${name}: ${n} FK`;
+  showInspector('table', T[name].id);
+  renderLists();
+}
+function focusEdge(p) {
+  if (selEdge === p) return clear();
+  sel = null; selEdge = p;
+  paths.forEach(x => {
+    x._rel.classList.remove('hot');
+    x._rel.classList.toggle('selected', x === p);
+    x._rel.classList.toggle('dim', x !== p);
+  });
+  gTables.querySelectorAll('.tb').forEach(g => {
+    const on = g.dataset.name === p.dataset.c || g.dataset.name === p.dataset.p;
+    g.classList.toggle('hot', on); g.classList.toggle('dim', !on);
+  });
+  $('sel').textContent = `· ${p.dataset.name} · ${p.dataset.card} · ` +
+    `${p.dataset.c}.${p.dataset.col} (${p.dataset.ccard}) → ` +
+    `${p.dataset.p}.${p.dataset.pcol} (${p.dataset.pcard})`;
+  showInspector('relationship', p.dataset.relationId);
+  renderLists();
+}
+svg.addEventListener('click', ev => {
+  if (suppressCanvasClick) { suppressCanvasClick = false; return; }
+  const tb = ev.target.closest('.tb');
+  if (tb) {
+    if (!drag || !drag.moved) {
+      const table = T[tb.dataset.name], point = toWorld(ev);
+      const row = Math.floor((point.y - table.y - HDR) / ROW);
+      if (row >= 0 && row < table.cols.length) {
+        focusTable(table.name);
+        showColumnInspector(table.id, table.cols[row].id);
+      } else {
+        (tb.dataset.name === sel ? clear() : focusTable(tb.dataset.name));
+      }
+    }
+    return;
+  }
+  if (!ev.target.closest('.blk')) { selBlock = null; drawSel(); }
+  clear();
+});
+gBlocks.addEventListener('dblclick', ev => {
+  const bk = ev.target.closest('.blk'); if (!bk) return;
+  renameBlock(BLOCKS.find(x => x.id === bk.dataset.id));
+});
+function renameBlock(b) {
+  openInline({x:b.x + 22, y:b.y + 18, w:Math.min(b.w - 44, 520), h:38, fs:30, value:b.name},
+    b.name, name => {
+      pushUndo(); b.name = name;
+      drawBlocks(); drawSel(); paintHeaders(); renderLists(); markDirty();
+    });
+}
+
+// ---------- listas laterais
+function renderLists() {
+  const counts = new Map(BLOCKS.map(b => [b.id, 0]));
+  let loose = 0;
+  DATA.tables.forEach(t => { const b = blockOf(t);
+    if (b) counts.set(b.id, counts.get(b.id) + 1); else loose++; });
+
+  const bl = $('blklist'); bl.textContent = '';
+  BLOCKS.forEach(b => {
+    const li = document.createElement('li');
+    li.className = selBlock && selBlock.id === b.id ? 'on' : '';
+    li.innerHTML = `<span class="dot" style="background:${b.color}"></span>` +
+                   `<span class="nm"></span><span class="ct">${counts.get(b.id)||0}</span>`;
+    li.querySelector('.nm').textContent = b.name;
+    li.onclick = () => { selBlock = b; drawSel(); renderLists();
+      zoomTo({x:b.x, y:b.y, w:b.w, h:b.h}, 160); };
+    li.ondblclick = () => renameBlock(b);
+    bl.append(li);
+  });
+  $('nblk').textContent = BLOCKS.length + (loose ? ` · ${loose} fora` : '');
+
+  const q = $('q').value.trim().toLowerCase();
+  const list = DATA.tables.filter(t => !q || t.name.toLowerCase().includes(q) ||
+    t.cols.some(c => c.name.toLowerCase().includes(q)));
+  const tl = $('tbllist'); tl.textContent = '';
+  list.slice(0, 400).forEach(t => {
+    const b = blockOf(t);
+    const li = document.createElement('li');
+    li.className = sel === t.name ? 'on' : '';
+    li.innerHTML = `<span class="dot" style="background:${b?b.color:'#39424f'}"></span>` +
+                   `<span class="nm"></span><span class="ct">${t.cols.length}</span>`;
+    li.querySelector('.nm').textContent = t.name;
+    li.onclick = () => { focusTable(t.name); zoomTo({x:t.x, y:t.y, w:t.w, h:t.h}, 900); };
+    tl.append(li);
+  });
+  $('ntbl').textContent = q ? `${list.length}/${DATA.tables.length}` : DATA.tables.length;
+}
+
+// ---------- controles
+$('q').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  renderLists();
+  if (!q) return clear();
+  sel = null; selEdge = null; $('sel').textContent = '';
+  const hit = new Set(DATA.tables.filter(t => t.name.toLowerCase().includes(q) ||
+    t.cols.some(c => c.name.toLowerCase().includes(q))).map(t => t.name));
+  gTables.querySelectorAll('.tb').forEach(g => { const on = hit.has(g.dataset.name);
+    g.classList.toggle('hot', on); g.classList.toggle('dim', !on); });
+  paths.forEach(p => { p._rel.classList.remove('hot','selected'); p._rel.classList.add('dim'); });
+});
+$('hubs').addEventListener('change', e =>
+  paths.forEach(p => p._rel.classList.toggle('hid', e.target.checked && p.dataset.hub === '1')));
+$('cols').addEventListener('change', lod);
+$('fit').addEventListener('click', fit);
+$('sideToggle').addEventListener('click', () => {
+  const v = viewport();
+  const center = {x:(v.w/2-TX)/S, y:(v.h/2-TY)/S};
+  document.documentElement.classList.toggle('side-collapsed');
+  localStorage.setItem('schemamap.sidebar', sideIsCollapsed() ? 'closed' : 'open');
+  syncSideToggle();
+  clearTimeout($('sideToggle')._resizeTimer);
+  $('sideToggle')._resizeTimer = setTimeout(() => {
+    const next = viewport();
+    TX = next.w/2-center.x*S; TY = next.h/2-center.y*S; apply();
+  }, 210);
+});
+$('edgestyle').addEventListener('change', e => {
+  EDGE = e.target.value; localStorage.setItem('schemamap.edge', EDGE); reroute(); });
+$('autosave').addEventListener('change', e => {
+  localStorage.setItem('schemamap.autosave', e.target.checked ? '1' : '0');
+  if (e.target.checked && dirty) markDirty(); });
+$('addblk').addEventListener('click', () => {
+  pushUndo();
+  const v = viewport();
+  const c = {x:(v.w/2-TX)/S, y:(v.h/2-TY)/S};
+  BLOCKS.push({id:'bloco_'+Date.now().toString(36), name:'novo bloco',
+    x:snap(c.x-450), y:snap(c.y-300), w:900, h:600, color:'#5aa9e6'});
+  drawBlocks(); drawSel(); paintHeaders(); renderLists(); markDirty();
+});
+$('auto').addEventListener('click', async () => {
+  if (!confirm('Recalcular posições de todas as tabelas e blocos?')) return;
+  const r = await fetch('api/relayout', {method:'POST'});
+  if (!r.ok) return toast('falhou: ' + r.status);
+  const d = await r.json();
+  pushUndo();
+  d.tables.forEach(n => { const t = T[n.name]; if (t) { t.x = n.x; t.y = n.y; moveTable(t); } });
+  BLOCKS = d.blocks.map(b => ({...b}));
+  drawBlocks(); paintHeaders(); reroute(); renderLists(); fit(); markDirty();
+  toast('reorganizado');
+});
+async function doSave(silent = false) {
+  if (saving) { markDirty(); return; }
+  saving = true;
+  const payload = {
+    tables: Object.fromEntries(DATA.tables.map(t => [t.name, {x:t.x, y:t.y}])),
+    blocks: BLOCKS,
+  };
+  try {
+    const r = await fetch('api/layout', {method:'POST',
+      headers:{'content-type':'application/json'}, body: JSON.stringify(payload)});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    dirty = false; $('save').disabled = true;
+    $('saved').className = ''; $('saved').textContent = 'salvo ' + new Date().toTimeString().slice(0,8);
+    if (!silent) toast('salvo em ' + (d.workspace || d.file.split(/[\\/]/).pop()));
+    return true;
+  } catch (e) {
+    $('saved').className = 'err'; $('saved').textContent = 'falha ao salvar';
+    toast('erro ao salvar: ' + e.message);
+    return false;
+  } finally { saving = false; }
+}
+$('save').addEventListener('click', () => doSave());
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') { if (e.key === 'Escape') e.target.blur(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); if (dirty) doSave(); }
+  else if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); popUndo(); }
+  else if (e.key === 'Escape') { clear(); selBlock = null; drawSel(); }
+  else if (e.key === 'f') fit();
+});
+addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+// ---------- início
+if (window.SchemaMapSqlEditor && SchemaMapSqlEditor.mountSchemaInspector) {
+  INSPECTOR = SchemaMapSqlEditor.mountSchemaInspector({
+    parent:$('inspectorContent'), getProject:() => apiJson('api/project'),
+    onMutate:mutateProject, onSelectColumn:markEditingColumn,
+  });
+}
+$('inspectorClose').addEventListener('click', clear);
+$('meta').textContent = `${DATA.meta.nt} tabelas · ${DATA.meta.nf} FKs · ` +
+  `${DATA.meta.dialect} · blocos: ${DATA.meta.grouping}`;
+$('edgestyle').value = EDGE;
+$('autosave').checked = localStorage.getItem('schemamap.autosave') !== '0';
+$('saved').textContent = DATA.saved ? 'layout salvo carregado' : '';
+syncSideToggle();
+drawBlocks(); paintHeaders(); reroute(); renderLists();
+requestAnimationFrame(fit);       // espera o layout do SVG antes de medir a tela
+
+// ---------- paleta de comandos -----------------------------------------------
+// Uma entrada só no lugar da fileira de botões. Cada item aponta para um botão
+// que já existe (visível ou oculto), então nenhum listener precisou mudar.
+const COMMANDS = [
+  {id:'addTable',      k:'nova',      label:'nova tabela'},
+  {id:'addColumn',     k:'nova',      label:'nova coluna'},
+  {id:'addFk',         k:'nova',      label:'nova chave estrangeira'},
+  {id:'editSql',       k:'sql',       label:'abrir editor SQL'},
+  {id:'openSql',       k:'sql',       label:'abrir arquivo .sql'},
+  {id:'exportSql',     k:'sql',       label:'exportar SQL (texto de origem)'},
+  {id:'exportPg',      k:'sql',       label:'exportar DDL gerado — PostgreSQL'},
+  {id:'exportMy',      k:'sql',       label:'exportar DDL gerado — MySQL'},
+  {id:'newProject',    k:'projeto',   label:'novo projeto'},
+  {id:'exportProject', k:'projeto',   label:'exportar projeto (.json)'},
+  {id:'save',          k:'projeto',   label:'salvar layout'},
+  {id:'addblk',        k:'diagrama',  label:'novo bloco'},
+  {id:'auto',          k:'diagrama',  label:'auto-organizar'},
+  {id:'fit',           k:'diagrama',  label:'ajustar à tela'},
+];
+// ---------- edição direta no canvas -----------------------------------------
+// Duplo clique edita no lugar, sem abrir painel: cabeçalho renomeia a tabela,
+// linha renomeia a coluna, título renomeia o bloco. O input é HTML flutuante
+// ancorado por world->tela, então acompanha zoom e pan.
+const inlineEl = $('inlineEdit');
+let inline = null;                      // {rect, commit} enquanto estiver aberto
+
+function placeInline() {
+  if (!inline) return;
+  const r = inline.rect;
+  inlineEl.style.left   = (r.x * S + TX) + 'px';
+  inlineEl.style.top    = (r.y * S + TY) + 'px';
+  inlineEl.style.width  = (r.w * S) + 'px';
+  inlineEl.style.height = (r.h * S) + 'px';
+  inlineEl.style.fontSize = Math.max(9, Math.min(20, r.fs * S)) + 'px';
+}
+function openInline(rect, value, commit, list) {
+  closeInline();
+  inline = {rect, commit};
+  inlineEl.value = value;
+  if (list) inlineEl.setAttribute('list', list); else inlineEl.removeAttribute('list');
+  inlineEl.classList.add('on');
+  placeInline();
+  inlineEl.focus();
+  inlineEl.select();
+}
+function closeInline() {
+  inline = null;
+  inlineEl.classList.remove('on');
+  inlineEl.value = '';
+}
+inlineEl.addEventListener('keydown', e => {
+  e.stopPropagation();                  // não deixa vazar para os atalhos globais
+  if (e.key === 'Enter') { e.preventDefault(); commitInline(); }
+  else if (e.key === 'Escape') { e.preventDefault(); closeInline(); }
+  else if (e.key === 'Tab') {
+    e.preventDefault();
+    const next = inline && inline.next;
+    if (!commitInline() && next) next();  // só reabre se nada foi alterado
+  }
+});
+inlineEl.addEventListener('blur', () => { if (inline) commitInline(); });
+function commitInline() {
+  if (!inline) return false;
+  const value = inlineEl.value.trim();
+  const run = inline.commit;
+  const before = inline.rect.value;
+  closeInline();
+  const changed = Boolean(value) && value !== before;
+  if (changed) run(value);
+  return changed;                       // mudou => haverá recarga da página
+}
+
+function columnAt(t, wy) {
+  if (wy < t.y + HDR) return -1;
+  const i = Math.floor((wy - t.y - HDR) / ROW);
+  return (i >= 0 && i < t.cols.length) ? i : -1;
+}
+
+gTables.addEventListener('dblclick', async ev => {
+  const g = ev.target.closest('.tb'); if (!g) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const t = T[g.dataset.name];
+  const w = toWorld(ev);
+  const i = columnAt(t, w.y);
+
+  if (i < 0) {                          // cabeçalho -> renomeia a tabela
+    if (!t.id) return toast('tabela sem id canônico: use o inspetor');
+    openInline({x:t.x, y:t.y, w:t.w, h:HDR, fs:13, value:t.name}, t.name, async name => {
+      try { await mutateProject({action:'table.update', table_id:t.id, values:{name}}); }
+      catch (e) { toast('não foi possível renomear: ' + e.message); }
+    });
+    return;
+  }
+  const col = t.cols[i];
+  if (!col.id || !t.id) return toast('coluna sem id canônico: use o inspetor');
+  // o divisor da grade decide o campo: à esquerda o nome, à direita o tipo
+  editColumn(t, i, (w.x - t.x) > splitOf(t) ? 'type' : 'name');
+});
+
+function splitOf(t) { return Math.round(t.w * 0.60); }
+
+// Edita nome ou tipo da coluna no lugar. Tab alterna entre os dois campos,
+// para não obrigar a um segundo duplo clique.
+function editColumn(t, i, field) {
+  const col = t.cols[i], split = splitOf(t), top = t.y + HDR + i*ROW;
+  const isType = field === 'type';
+  const rect = isType
+    ? {x:t.x + split + 2, y:top, w:t.w - split - 6, h:ROW, fs:10, value:col.type}
+    : {x:t.x + 6,         y:top, w:split - 10,      h:ROW, fs:11, value:col.name};
+
+  openInline(rect, isType ? col.type : col.name, async value => {
+    const values = isType ? {type:value} : {name:value};
+    try { await mutateProject({action:'column.update', table_id:t.id,
+                               column_id:col.id, values}); }
+    catch (e) { toast('não foi possível alterar: ' + e.message); }
+  }, isType ? 'typeOptions' : null);
+
+  inline.next = () => editColumn(t, i, isType ? 'name' : 'type');
+}
+
+// tipos oferecidos nos campos de coluna, conforme o dialeto do projeto
+const TYPES = {
+  postgres: ['UUID','TEXT','VARCHAR(255)','VARCHAR(60)','CHAR(2)','INTEGER','BIGINT','SMALLINT',
+             'SERIAL','BIGSERIAL','NUMERIC(18,2)','REAL','DOUBLE PRECISION','BOOLEAN','DATE',
+             'TIME','TIMESTAMP','TIMESTAMPTZ','JSONB','BYTEA','INET'],
+  mysql:    ['CHAR(36)','TEXT','VARCHAR(255)','VARCHAR(60)','CHAR(2)','INT','BIGINT','SMALLINT',
+             'TINYINT(1)','DECIMAL(18,2)','FLOAT','DOUBLE','DATE','TIME','DATETIME','TIMESTAMP',
+             'JSON','BLOB','LONGTEXT'],
+};
+function fillTypeOptions() {
+  const list = $('typeOptions'); if (!list) return;
+  const dialect = (DATA.meta.dialect === 'mysql') ? 'mysql' : 'postgres';
+  list.textContent = '';
+  TYPES[dialect].forEach(t => { const o = document.createElement('option'); o.value = t; list.append(o); });
+}
+fillTypeOptions();
+
+const palette = $('cmdPalette'), cmdInput = $('cmdInput'), cmdList = $('cmdList');
+let cmdIndex = 0, cmdShown = COMMANDS;
+
+function renderCommands() {
+  const q = cmdInput.value.trim().toLowerCase();
+  cmdShown = COMMANDS.filter(c => !q || c.label.toLowerCase().includes(q) ||
+                                  c.k.includes(q));
+  if (cmdIndex >= cmdShown.length) cmdIndex = 0;
+  cmdList.textContent = '';
+  cmdShown.forEach((c, i) => {
+    const li = document.createElement('li');
+    li.setAttribute('aria-selected', i === cmdIndex ? 'true' : 'false');
+    li.innerHTML = '<span class="k"></span><span class="l"></span>';
+    li.querySelector('.k').textContent = c.k;
+    li.querySelector('.l').textContent = c.label;
+    li.onclick = () => runCommand(c);
+    cmdList.append(li);
+  });
+  if (!cmdShown.length) {
+    const li = document.createElement('li');
+    li.textContent = 'nenhum comando';
+    cmdList.append(li);
+  }
+}
+function openPalette() {
+  cmdInput.value = ''; cmdIndex = 0; renderCommands();
+  if (!palette.open) palette.showModal();
+  cmdInput.focus();
+}
+function runCommand(c) {
+  palette.close();
+  const target = document.getElementById(c.id);
+  if (!target) return toast('comando indisponível: ' + c.label);
+  if (target.disabled) return toast(c.label + ': nada a fazer agora');
+  target.click();
+}
+cmdInput.addEventListener('input', renderCommands);
+cmdInput.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown') { e.preventDefault(); cmdIndex = Math.min(cmdIndex+1, cmdShown.length-1); renderCommands(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); cmdIndex = Math.max(cmdIndex-1, 0); renderCommands(); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (cmdShown[cmdIndex]) runCommand(cmdShown[cmdIndex]); }
+});
+// exporta o DDL gerado do modelo canônico, convertendo tipos para o dialeto
+async function exportGenerated(dialect) {
+  try {
+    const r = await fetch('api/sql/generated?dialect=' + dialect);
+    if (!r.ok) throw new Error((await r.json()).error || ('HTTP ' + r.status));
+    const d = await r.json();
+    const base = (d.title || 'schema').replace(/\.sql$/i, '');
+    const url = URL.createObjectURL(new Blob([d.sql], {type:'application/sql;charset=utf-8'}));
+    const a = document.createElement('a');
+    a.href = url; a.download = `${base}.${dialect}.sql`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+    toast('DDL ' + dialect + ' exportado');
+  } catch (e) { toast('falha ao gerar DDL: ' + e.message); }
+}
+$('exportPg').addEventListener('click', () => exportGenerated('postgres'));
+$('exportMy').addEventListener('click', () => exportGenerated('mysql'));
+$('cmdOpen').addEventListener('click', openPalette);
+addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); }
+}, true);
+</script>

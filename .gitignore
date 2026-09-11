@@ -1,0 +1,8 @@
+node_modules/
+assets/sql-editor.js
+__pycache__/
+*.pyc
+.DS_Store
+*.layout.json
+schemas/*/diagrama.html
+/schemas
